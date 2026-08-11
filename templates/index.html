@@ -406,6 +406,13 @@ async function drawDashboard(){
     <table><thead><tr><th>Quote #</th><th>Client</th><th>Package / Products</th><th>Monthly</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
     <tbody id="rows"></tbody></table>
    </div>
+   <div class="panel" style="margin-top:16px">
+    <div class="phead"><span class="ttl">Insertion Orders</span>
+     <button class="btn btn-primary" style="padding:8px 14px;font-size:12.5px" onclick="nav('io')">＋ New IO — open the IO builder</button>
+     <div class="search"><input id="ioq" placeholder="Look up IO #, client, quote #…" oninput="drawIoRows()"></div></div>
+    <table><thead><tr><th>IO #</th><th>Client</th><th>Package / Products</th><th>Monthly</th><th>Converted</th><th style="text-align:right">Documents</th></tr></thead>
+    <tbody id="ioRows"></tbody></table>
+   </div>
   </div>
   <div class="rail">
    <div class="panel"><div class="phead"><span class="ttl">✨ Smart 1 AI Assistant</span></div><div class="ai">
@@ -424,6 +431,28 @@ async function drawDashboard(){
    </div></div>
   </div></div>`;
  drawRows();
+ drawIoRows();
+}
+function ioRowHtml(x){
+ return `<tr class="rowlink" onclick="openDrawer(${x.id})">
+  <td><span class="qnum">IO #${esc(x.io_number)}<small>from ${esc(x.quote_number)}</small></span></td>
+  <td><b style="color:var(--navy)">${esc(x.client||"—")}</b><small style="display:block;color:var(--muted)">${esc(x.website||"")}</small></td>
+  <td style="font-size:12.5px;color:#33415C">${x.package?`<b>${esc(x.package)}</b> · `:""}${esc(x.products_summary||"—")}</td>
+  <td><span class="money">${money(x.monthly_budget)}<small>${x.months} mo · ${money(x.total_budget)} total</small></span></td>
+  <td style="font-size:12px;color:var(--muted)">${ago(x.converted_at||x.updated_at)}</td>
+  <td><div class="rowact" onclick="event.stopPropagation()">
+   ${x.io_client_pdf_url?`<button class="ic" title="Customer PDF" onclick="window.open('${esc(x.io_client_pdf_url)}','_blank')">📄</button>`:""}
+   ${x.io_internal_pdf_url?`<button class="ic" title="Internal PDF" onclick="window.open('${esc(x.io_internal_pdf_url)}','_blank')">🔒</button>`:""}
+   <button class="ic" title="View details" onclick="openDrawer(${x.id})">🔍</button>
+   <button class="ic" title="New quote based on this IO" onclick="dupQuote(${x.id})">📋</button>
+  </div></td></tr>`;
+}
+function drawIoRows(){
+ const tb=document.getElementById('ioRows');if(!tb)return;
+ const q=(document.getElementById('ioq')?.value||"").toLowerCase();
+ const rows=LIST.filter(x=>x.status==='Converted'&&x.io_number)
+  .filter(x=>!q||["io #"+x.io_number,x.io_number,x.client,x.website,x.quote_number,x.products_summary].join(" ").toLowerCase().includes(q));
+ tb.innerHTML=rows.map(ioRowHtml).join("")||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">No IOs yet — convert an approved proposal above, or click <b>＋ New IO</b> to build one directly in the IO builder.</td></tr>`;
 }
 function setTab(el,t){listTab=t;document.querySelectorAll('#tabs span').forEach(s=>s.classList.remove('on'));el.classList.add('on');drawRows();}
 function rowHtml(x){
@@ -513,11 +542,31 @@ async function drawClients(){
 /* ============================================================
    IO VIEW (existing app, embedded untouched)
    ============================================================ */
-function drawIO(){
+async function drawIO(){
  const host=document.getElementById('view-io');
- host.innerHTML=`<div class="headrow"><div class="grow"><h1>Insertion Order Builder</h1>
-  <div class="pgsub">This is the existing IO app, unchanged. <a style="cursor:pointer" onclick="window.open(CFG.io_app_url,'_blank')">Open in its own tab ↗</a> · <a style="cursor:pointer" onclick="setIoUrl()">⚙ change URL</a></div></div></div>
-  <iframe class="ioframe" src="${esc(CFG.io_app_url)}"></iframe>`;
+ host.innerHTML=`<div class="headrow"><div class="grow"><h1>Insertion Orders</h1>
+  <div class="pgsub">Look up an existing IO below, or build a new one — the IO builder is the existing app, unchanged. <a style="cursor:pointer" onclick="window.open(CFG.io_app_url,'_blank')">Open the IO builder in its own tab ↗</a> · <a style="cursor:pointer" onclick="setIoUrl()">⚙ change URL</a></div></div></div>
+  <div class="panel" style="margin-bottom:16px">
+   <div class="phead"><span class="ttl">🔍 IO Lookup</span><span class="note">IOs created from converted proposals — with their quote history and PDFs</span>
+    <div class="search"><input id="ioq2" placeholder="Search IO #, client, quote #…" oninput="drawIoLookup()"></div></div>
+   <table><thead><tr><th>IO #</th><th>Client</th><th>Package / Products</th><th>Monthly</th><th>Converted</th><th style="text-align:right">Documents</th></tr></thead>
+   <tbody id="ioRows2"></tbody></table>
+  </div>
+  <div class="panel" style="margin-bottom:0;overflow:hidden">
+   <div class="phead"><span class="ttl">＋ IO Builder — build a new insertion order</span>
+    <button class="btn btn-primary" style="margin-left:auto;padding:8px 14px;font-size:12.5px" onclick="window.open(CFG.io_app_url,'_blank')">Open the IO builder in its own tab ↗</button></div>
+   <iframe class="ioframe" style="border-radius:0;box-shadow:none" src="${esc(CFG.io_app_url)}"></iframe>
+   <div class="note" style="padding:8px 18px 12px">If the builder doesn't load in this frame, use the button above — it's the same app either way.</div>
+  </div>`;
+ if(!LIST.length){try{const l=await api('/api/quotes?limit=300');LIST=l.quotes||[];}catch(e){}}
+ drawIoLookup();
+}
+function drawIoLookup(){
+ const tb=document.getElementById('ioRows2');if(!tb)return;
+ const q=(document.getElementById('ioq2')?.value||"").toLowerCase();
+ const rows=LIST.filter(x=>x.status==='Converted'&&x.io_number)
+  .filter(x=>!q||["io #"+x.io_number,x.io_number,x.client,x.website,x.quote_number,x.products_summary].join(" ").toLowerCase().includes(q));
+ tb.innerHTML=rows.map(ioRowHtml).join("")||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px">No converted IOs yet. IOs built directly in the IO builder below live in the IO system (Cloudinary / Smart 1 Suite); IOs converted from proposals show up here automatically.</td></tr>`;
 }
 function setIoUrl(){const v=prompt("IO builder URL:",CFG.io_app_url);if(v!==null&&v.trim()){CFG.io_app_url=v.trim();lsSet("s1_io_app_url",CFG.io_app_url);drawIO();}}
 
