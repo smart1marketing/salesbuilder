@@ -1,5 +1,5 @@
 """
-Smart 1 Hub — Proposals & Insertion Orders
+Smart 1 Sales Builder — Proposals & Insertion Orders
 ==========================================
 Combined dashboard + proposal builder backend.
 
@@ -65,7 +65,7 @@ _db_url = os.getenv("DATABASE_URL", "").strip()
 if _db_url.startswith("postgres://"):  # Render's URL form -> SQLAlchemy form
     _db_url = _db_url.replace("postgres://", "postgresql://", 1)
 if not _db_url:
-    _db_url = "sqlite:///" + str(BASE_DIR / "smart1_hub.db")
+    _db_url = "sqlite:///" + str(BASE_DIR / "smart1_sales_builder.db")
 engine = create_engine(_db_url, future=True,
                        connect_args={"check_same_thread": False} if _db_url.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)

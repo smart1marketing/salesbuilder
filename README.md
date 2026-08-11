@@ -1,4 +1,4 @@
-# Smart 1 Hub — Proposals & Insertion Orders (v1)
+# Smart 1 Sales Builder — Proposals & Insertion Orders (v1)
 
 One dashboard for the whole flow: build a branded proposal for a customer,
 save it to a database under a quote number, edit / duplicate / look it up
@@ -21,13 +21,13 @@ existing IO app — which is **not modified in any way**.
 2. `python app.py`
 3. Open `http://localhost:8001`
 
-With no configuration it uses a local SQLite file (`smart1_hub.db`) and
+With no configuration it uses a local SQLite file (`smart1_sales_builder.db`) and
 talks to the live IO API at `insertionordersmart.onrender.com` for the AI
 features and IO conversion.
 
 ## Publish to GitHub (drag-and-drop, no git needed)
 
-1. Go to github.com → **New repository** → name it **smart1-hub** →
+1. Go to github.com → **New repository** → name it **smart1-sales-builder** →
    Private → **Create repository**.
 2. On the new repo page click **uploading an existing file**.
 3. Drag in everything from this folder: `app.py`, `requirements.txt`,
@@ -42,26 +42,26 @@ features and IO conversion.
 Command-line alternative:
 
 ```
-cd smart1-hub
+cd smart1-sales-builder
 git init
 git add .
-git commit -m "Smart 1 Hub v1"
+git commit -m "Smart 1 Sales Builder v1"
 git branch -M main
-git remote add origin https://github.com/YOURUSERNAME/smart1-hub.git
+git remote add origin https://github.com/YOURUSERNAME/smart1-sales-builder.git
 git push -u origin main
 ```
 
 ## Deploy on Render (Blueprint)
 
 1. dashboard.render.com → **New → Blueprint**.
-2. Connect the **smart1-hub** GitHub repo. Render reads `render.yaml`
+2. Connect the **smart1-sales-builder** GitHub repo. Render reads `render.yaml`
    and shows what it will create:
-   - a **web service** (`smart1-hub`) — the app itself, with a `/health`
+   - a **web service** (`smart1-sales-builder`) — the app itself, with a `/health`
      check and auto-deploy on every commit
-   - a **Postgres database** (`smart1-hub-db`) — where quotes, statuses,
+   - a **Postgres database** (`smart1-sales-builder-db`) — where quotes, statuses,
      and archived PDFs live, so nothing is lost across deploys
 3. It prompts for the one secret it can't invent: **OPENAI_API_KEY**.
-   Paste your key to enable the hub's own AI features, or leave it blank
+   Paste your key to enable the Sales Builder's own AI features, or leave it blank
    — the builder, PDFs, and conversion all work without it.
 4. Click **Apply**. First build takes a few minutes; when it's live, open
    the service URL and the dashboard comes up. Updating later is just
@@ -89,7 +89,7 @@ Environment variables (already wired in the blueprint):
 
 ## Quote numbers
 
-Quotes are numbered `Q-10200, Q-10201, …` from the hub's own counter —
+Quotes are numbered `Q-10200, Q-10201, …` from the Sales Builder's own counter —
 the same number family as IOs so they match up later. When a proposal is
 converted, the IO's order number comes from the IO app's own
 `/api/next-order-number` (the 10200-series Cloudinary counter), exactly

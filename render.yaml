@@ -1,20 +1,20 @@
 # =====================================================================
-# Render Blueprint — Smart 1 Hub (Proposals & Insertion Orders)
+# Render Blueprint — Smart 1 Sales Builder (Proposals & Insertion Orders)
 # ---------------------------------------------------------------------
 # Deploy this folder as its own Render web service (separate from the
 # existing insertionordersmart service, which stays untouched).
 #
 # The free/starter Postgres below is what makes quotes survive deploys.
-# If you skip the database, the hub still runs on SQLite but the data
+# If you skip the database, the Sales Builder still runs on SQLite but the data
 # resets whenever Render replaces the instance — add the database.
 # =====================================================================
 databases:
-  - name: smart1-hub-db
+  - name: smart1-sales-builder-db
     plan: basic-256mb
 
 services:
   - type: web
-    name: smart1-hub
+    name: smart1-sales-builder
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
@@ -26,7 +26,7 @@ services:
         value: 3.11.9
       - key: DATABASE_URL
         fromDatabase:
-          name: smart1-hub-db
+          name: smart1-sales-builder-db
           property: connectionString
       # The existing IO app — API for AI routes + IO conversion, and the
       # embedded IO builder tab. Change if the IO app URL ever moves.
@@ -35,7 +35,7 @@ services:
       - key: IO_APP_URL
         value: https://insertionordersmart.onrender.com
       # Optional: enables "draft a proposal from one sentence" and the
-      # AI section rewriter in the hub itself (the IO app's AI routes
+      # AI section rewriter in the Sales Builder itself (the IO app's AI routes
       # keep working either way).
       - key: OPENAI_API_KEY
         sync: false

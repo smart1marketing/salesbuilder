@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart 1 Hub — Proposals &amp; Insertion Orders</title>
+<title>Smart 1 Sales Builder — Proposals &amp; Insertion Orders</title>
 <style>
   :root{--navy:#14284b;--blue:#1f63ae;--blue2:#2A6FDB;--sky:#eaf2fa;--soft:#EAF1FC;--accent:#e5a323;
     --ink:#1d2a3a;--muted:#66758a;--line:#d5dee9;--bg:#f3f6f9;--white:#fff;--good:#178653;--bad:#c0392b;
@@ -200,7 +200,7 @@
 </head>
 <body>
 <div class="topbar"><div class="wrap">
-  <div class="brand" onclick="nav('dashboard')"><span class="dot">S1</span><span>SMART 1 HUB<small>Proposals &amp; Insertion Orders</small></span></div>
+  <div class="brand" onclick="nav('dashboard')"><span class="dot">S1</span><span>SMART 1 SALES BUILDER<small>Proposals &amp; Insertion Orders</small></span></div>
   <nav class="topnav" id="topnav">
     <a data-v="dashboard" class="on" onclick="nav('dashboard')">Dashboard</a>
     <a data-v="proposals" onclick="nav('proposals')">Proposals</a>
@@ -411,7 +411,7 @@ async function drawDashboard(){
    <div class="panel"><div class="phead"><span class="ttl">✨ Smart 1 AI Assistant</span></div><div class="ai">
     ${(DASH.nudges||[]).map(n=>`<div class="bubble"><span class="tag2">${esc(n.tag)}</span><br>${esc(n.text)}</div>`).join("")||'<div class="note">Nudges appear here — stale quotes, approved proposals ready to convert, and pricing guardrails.</div>'}
     <div class="aiask"><input id="aiAsk" placeholder="e.g. build a $6k/mo proposal for an HVAC company in Carmel"><button class="btn btn-primary" style="padding:10px 14px" onclick="aiDraft()">→</button></div>
-    ${CFG.ai_enabled?'':'<div class="note" style="margin-top:7px">AI drafting needs OPENAI_API_KEY on the hub server — the guided builder works without it.</div>'}
+    ${CFG.ai_enabled?'':'<div class="note" style="margin-top:7px">AI drafting needs OPENAI_API_KEY on the Sales Builder server — the guided builder works without it.</div>'}
    </div></div>
    <div class="panel"><div class="phead"><span class="ttl">Quick Actions</span></div><div class="quick">
     <button class="btn btn-ghost" onclick="nav('proposals')">📋 New proposal from an existing quote</button>
@@ -894,7 +894,7 @@ async function aiRewrite(i){
  const ins=(document.getElementById('aiIns'+i).value||"").trim()||"make it clearer and more client-friendly";
  const text=S.sections[i].body||"";
  if(!text){toast("Write something in the section first, then AI can rewrite it.");return;}
- if(!CFG.ai_enabled){toast("AI rewrite needs OPENAI_API_KEY on the hub server.");return;}
+ if(!CFG.ai_enabled){toast("AI rewrite needs OPENAI_API_KEY on the Sales Builder server.");return;}
  toast("✨ Rewriting…");
  try{const d=await api('/api/ai/rewrite',{method:'POST',body:JSON.stringify({text,instruction:ins})});
   S.sections[i].body=d.text;saveSoon();drawSections();toast("✨ Rewritten — edit further as needed.");}
@@ -1051,7 +1051,7 @@ function ioDataPayload(){
   items,creativeUploads:[],brandfetch:{},
   monthlySpendFormatted:money(monthly)+" / month",totalCampaignBudgetFormatted:money(total),
   trackingPlan,guardrailWarnings:(CONV.quote.guardrails||[]).map(g=>({message:g})),
-  internalWarnings:["Converted from proposal "+q.quote_number+" in Smart 1 Hub."],
+  internalWarnings:["Converted from proposal "+q.quote_number+" in Smart 1 Sales Builder."],
   customerRequirements,internalRequirements,
   mediaMixRecommendation:{},naming:{},campaignOwner:a.salesContact,
   sourceQuote:q.quote_number};
