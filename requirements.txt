@@ -1,0 +1,9 @@
+flask
+flask-cors
+sqlalchemy
+psycopg2-binary
+reportlab
+python-docx
+requests
+python-dotenv
+gunicorn
