@@ -22,6 +22,48 @@
   .topnav a:hover{background:rgba(255,255,255,.09)}
   .userchip{margin-left:auto;display:flex;align-items:center;gap:9px;font-size:13px;color:#c9d8ee;cursor:pointer}
   .userchip .av{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#3a2600;font-weight:800;display:grid;place-items:center;font-size:12px}
+  /* version badge — top right, for troubleshooting from a screenshot */
+  .vbadge{margin-left:14px;font-size:10.5px;font-weight:800;letter-spacing:.6px;color:#9fb6d8;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:999px;
+    padding:4px 10px;cursor:pointer;white-space:nowrap;flex:none}
+  .vbadge:hover{background:rgba(255,255,255,.18);color:#fff}
+  /* tools */
+  .toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px;margin-top:4px}
+  .toolcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:.15s}
+  .toolcard:hover{border-color:#b9d0f5;transform:translateY(-2px)}
+  .toolcard .ti{width:44px;height:44px;border-radius:12px;background:var(--sky);color:var(--blue);display:grid;place-items:center;font-size:21px;margin-bottom:11px}
+  .toolcard h3{margin:0 0 4px;font-size:16px;color:var(--navy)}
+  .toolcard p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .toolcard .soon{display:inline-block;margin-top:9px;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;background:#eef3f8;color:#53657a;border-radius:6px;padding:3px 8px}
+  .drop{border:2px dashed #b9cade;border-radius:14px;background:#fbfdff;padding:28px 20px;text-align:center;cursor:pointer;transition:.15s;margin-top:6px}
+  .drop:hover,.drop.over{border-color:var(--blue);background:#f2f8ff}
+  .drop .em{font-size:34px}
+  .drop b{display:block;color:var(--navy);font-size:15px;margin-top:6px}
+  .drop span{font-size:12.5px;color:var(--muted)}
+  .imgrow{display:flex;gap:14px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:12px;margin-top:11px;background:#fff;flex-wrap:wrap}
+  .imgrow img{width:86px;height:86px;object-fit:cover;border-radius:9px;border:1px solid var(--line);flex:none;background:#f3f6f9}
+  .imgrow .fields{flex:1;min-width:230px}
+  .imgrow .fields input,.imgrow .fields textarea{width:100%;border:1px solid #b8c6d5;border-radius:9px;padding:8px 11px;font-size:13px;font-family:inherit}
+  .imgrow .fields textarea{min-height:52px;resize:vertical}
+  .imgrow .lab{font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:9px 0 4px}
+  .imgrow .lab:first-child{margin-top:0}
+  .imgrow .meta2{font-size:11.5px;color:var(--muted);margin-top:7px}
+  .imgrow .ext{color:var(--muted);font-weight:700}
+  .aitag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.5px;border-radius:5px;padding:2px 7px;text-transform:uppercase;margin-left:7px}
+  .aitag.ai{background:#fff5df;color:#8a6410}
+  .aitag.pat{background:#eef3f8;color:#53657a}
+  .savedrow{display:flex;gap:12px;align-items:center;padding:11px 13px;border:1px solid var(--line);border-radius:11px;margin-top:9px;background:#fff;flex-wrap:wrap}
+  .savedrow img{width:52px;height:52px;object-fit:cover;border-radius:8px;flex:none}
+  .savedrow .u{flex:1;min-width:200px;font-size:12px;color:#33415C;word-break:break-all}
+  .savedrow .u b{display:block;color:var(--navy);font-size:13px;margin-bottom:2px}
+  .okbox{background:#eaf6ef;border:1px solid #b7e0c8;border-radius:11px;padding:13px 15px;font-size:13px;color:#137a4e;margin-top:13px}
+  .okbox b{display:block;margin-bottom:3px}
+  .infobox{background:#eef4fa;border:1px solid #c6d9ee;border-radius:11px;padding:12px 15px;font-size:12.5px;color:#33506f;margin-top:13px}
+  .diagtbl{width:100%;font-size:13px;border-collapse:collapse}
+  .diagtbl td{padding:7px 0;border-bottom:1px solid #edf2f7}
+  .diagtbl td:first-child{color:var(--muted);width:45%}
+  .diagtbl td:last-child{text-align:right;font-weight:700;color:var(--navy)}
+  .yes{color:var(--good)}.no{color:var(--bad)}
   .shell{max-width:1240px;margin:0 auto;padding:24px 22px 80px}
   h1{font-size:22px;color:var(--navy);margin:0}
   .pgsub{color:var(--muted);font-size:13.5px;margin-top:3px}
@@ -206,8 +248,10 @@
     <a data-v="proposals" onclick="nav('proposals')">Proposals</a>
     <a data-v="io" onclick="nav('io')">Insertion Orders</a>
     <a data-v="clients" onclick="nav('clients')">Clients</a>
+    <a data-v="tools" onclick="nav('tools')">Tools</a>
   </nav>
   <div class="userchip" onclick="editRep()"><span id="repName">Set your name</span><span class="av" id="repAv">S1</span></div>
+  <span class="vbadge" id="vBadge" title="Build info — click for diagnostics" onclick="showDiag()">v{{ app_version }}</span>
 </div></div>
 
 <div class="shell">
@@ -220,6 +264,7 @@
   </div></div>
   <div id="view-io" style="display:none"></div>
   <div id="view-clients" style="display:none"></div>
+  <div id="view-tools" style="display:none"></div>
 </div>
 
 <div class="bnav" id="bnav"><div class="wrap">
@@ -362,7 +407,7 @@ function drawRep(){document.getElementById('repName').textContent=REP_NAME||"Set
 /* ============================================================
    ROUTER
    ============================================================ */
-const VIEWS=["dashboard","proposals","builder","io","clients"];
+const VIEWS=["dashboard","proposals","builder","io","clients","tools"];
 function nav(v){VIEWS.forEach(x=>{document.getElementById('view-'+x).style.display=(x===v)?'':'none';});
  document.querySelectorAll('#topnav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v||(v==='builder'&&a.dataset.v==='proposals')));
  document.getElementById('bnav').style.display=(v==='builder')?'block':'none';
@@ -370,7 +415,259 @@ function nav(v){VIEWS.forEach(x=>{document.getElementById('view-'+x).style.displ
  if(v==='proposals')drawProposals();
  if(v==='io')drawIO();
  if(v==='clients')drawClients();
+ if(v==='tools')drawTools();
  window.scrollTo(0,0);}
+
+/* ============================================================
+   VERSION / DIAGNOSTICS  (badge lives in the top-right corner)
+   ============================================================ */
+async function showDiag(){
+ let h={};
+ try{h=await api('/health');}catch(e){}
+ const yn=b=>b?'<span class="yes">✓ Yes</span>':'<span class="no">✗ No</span>';
+ document.getElementById('convTitle').textContent="Smart 1 Sales Builder — Build Info";
+ document.getElementById('convSub').textContent="Quote this screen when reporting a problem.";
+ document.getElementById('convBody').innerHTML=`<table class="diagtbl">
+  <tr><td>App version</td><td>v${esc(CFG.version||'?')}</td></tr>
+  <tr><td>Build date</td><td>${esc(CFG.build_date||'—')}</td></tr>
+  <tr><td>This build adds</td><td style="font-weight:600;text-align:right">${esc(CFG.version_notes||'—')}</td></tr>
+  <tr><td>Database</td><td>${esc(h.database||CFG.database||'—')}</td></tr>
+  <tr><td>AI (OpenAI key)</td><td>${yn(CFG.ai_enabled)}</td></tr>
+  <tr><td>Cloudinary hosting</td><td>${yn(CFG.cloudinary_enabled)}</td></tr>
+  <tr><td>IO API</td><td style="font-size:11.5px;word-break:break-all">${esc(CFG.io_api_base||'—')}</td></tr>
+  <tr><td>Server status</td><td>${h.status?esc(h.status):'<span class="no">unreachable</span>'}</td></tr>
+  <tr><td>Browser time</td><td>${esc(new Date().toLocaleString())}</td></tr>
+ </table>`;
+ document.getElementById('convFoot').innerHTML=`<button class="btn btn-back" onclick="convClose()">Close</button>
+  <button class="btn btn-line" onclick="copyDiag()">📋 Copy details</button>`;
+ document.getElementById('convModal').classList.add('open');
+}
+function copyDiag(){
+ const t=`Smart 1 Sales Builder v${CFG.version} (${CFG.build_date}) · db=${CFG.database} · ai=${CFG.ai_enabled} · cloudinary=${CFG.cloudinary_enabled} · ${new Date().toISOString()}`;
+ navigator.clipboard.writeText(t).then(()=>toast("Build details copied — paste them into your bug report."),()=>toast(t));
+}
+
+/* ============================================================
+   TOOLS
+   ============================================================ */
+function drawTools(){
+ const host=document.getElementById('view-tools');
+ host.innerHTML=`
+  <div class="headrow"><div class="grow"><h1>Tools</h1>
+   <div class="pgsub">Utilities that support the sales and delivery process.</div></div></div>
+  <div class="toolgrid">
+   <div class="toolcard" onclick="openImageTool()">
+    <div class="ti">🖼</div><h3>SEO Image Optimizer</h3>
+    <p>Bulk resize images, convert to WebP, and let AI write keyword-rich filenames and accessible alt text. Save straight to Cloudinary or download a ZIP.</p>
+   </div>
+   <div class="toolcard" style="cursor:default;opacity:.62" onclick="toast('Not built yet — tell me when you want this one.')">
+    <div class="ti">🔤</div><h3>Naming Convention Builder</h3>
+    <p>Generate campaign, ad group, and creative names that match the IO builder's conventions.</p><span class="soon">Planned</span>
+   </div>
+   <div class="toolcard" style="cursor:default;opacity:.62" onclick="toast('Not built yet — tell me when you want this one.')">
+    <div class="ti">📊</div><h3>Budget &amp; Reach Calculator</h3>
+    <p>Quick standalone CPM/CPV math without starting a full proposal.</p><span class="soon">Planned</span>
+   </div>
+  </div>
+  <div id="toolPane"></div>`;
+}
+
+/* ---------- SEO Image Optimizer ---------- */
+let IMG={files:[],analyzed:[],step:0,busy:false};
+function openImageTool(){IMG={files:[],analyzed:[],step:1,busy:false};drawImageTool();}
+function imgMeta(){return{
+ companyName:(document.getElementById('imgCompany')?.value||"").trim(),
+ webUrl:(document.getElementById('imgUrl')?.value||"").trim(),
+ projectName:(document.getElementById('imgProject')?.value||"").trim(),
+ pageName:(document.getElementById('imgPage')?.value||"").trim()};}
+let IMG_META={companyName:"",webUrl:"",projectName:"",pageName:""};
+let IMG_OPTS={preset:"full",quality:82,maxWidth:1600};
+
+function drawImageTool(){
+ const pane=document.getElementById('toolPane');if(!pane)return;
+ if(IMG.step===0){pane.innerHTML="";return;}
+ if(IMG.step===1)pane.innerHTML=imgStep1();
+ if(IMG.step===2)pane.innerHTML=imgStep2();
+ if(IMG.step===3)pane.innerHTML=imgStep3();
+ if(IMG.step===1)wireDrop();
+ pane.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function imgStep1(){
+ const n=IMG.files.length;
+ return `<div class="panel" style="margin-top:20px">
+  <div class="phead"><span class="ttl">🖼 SEO Image Optimizer — 1. Project &amp; files</span>
+   <button class="btn btn-line" style="margin-left:auto;padding:7px 12px;font-size:12.5px" onclick="IMG.step=0;drawImageTool()">✕ Close</button></div>
+  <div class="pbody">
+   <div class="two">
+    <div class="fld" style="margin-top:0"><label>Company name *</label><input id="imgCompany" value="${esc(IMG_META.companyName)}" placeholder="Hoosier Roofing Co." oninput="IMG_META.companyName=this.value"></div>
+    <div class="fld" style="margin-top:0"><label>Website</label><input id="imgUrl" value="${esc(IMG_META.webUrl)}" placeholder="hoosierroofing.com" oninput="IMG_META.webUrl=this.value"></div>
+   </div>
+   <div class="two">
+    <div class="fld"><label>Project name *</label><input id="imgProject" value="${esc(IMG_META.projectName)}" placeholder="Spring 2026 Website Refresh" oninput="IMG_META.projectName=this.value"></div>
+    <div class="fld"><label>Page (optional)</label><input id="imgPage" value="${esc(IMG_META.pageName)}" placeholder="Roof Replacement" oninput="IMG_META.pageName=this.value"></div>
+   </div>
+   <div class="three">
+    <div class="fld"><label>Resize to</label><select id="imgPreset" onchange="IMG_OPTS.preset=this.value;drawImageTool()">
+     ${[["hero","Hero — max 2400px"],["full","Full width — max 1920px"],["content","In-content — max 1200px"],["thumb","Thumbnail — max 800px"],["original","Keep original size"],["custom","Custom width…"]]
+       .map(o=>`<option value="${o[0]}" ${IMG_OPTS.preset===o[0]?'selected':''}>${o[1]}</option>`).join("")}
+    </select></div>
+    ${IMG_OPTS.preset==='custom'?`<div class="fld"><label>Max width (px)</label><input type="number" min="100" max="6000" value="${IMG_OPTS.maxWidth}" oninput="IMG_OPTS.maxWidth=+this.value"></div>`:'<div></div>'}
+    <div class="fld"><label>WebP quality — ${IMG_OPTS.quality}</label><input type="range" min="50" max="95" value="${IMG_OPTS.quality}" oninput="IMG_OPTS.quality=+this.value;this.previousElementSibling.textContent='WebP quality — '+this.value"></div>
+   </div>
+   <div class="drop" id="imgDrop" onclick="document.getElementById('imgInput').click()">
+    <div class="em">📤</div><b>${n?`${n} image${n===1?'':'s'} ready`:'Drop images here, or click to choose'}</b>
+    <span>JPG, PNG, WebP, GIF, TIFF · up to 10 per batch</span>
+   </div>
+   <input type="file" id="imgInput" accept="image/*" multiple style="display:none" onchange="addImages(this.files);this.value=''">
+   <div id="imgList"></div>
+   <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+    <button class="btn btn-gold" id="imgGo" onclick="analyzeImages()" ${n?'':'disabled'}>✨ Analyze &amp; review names</button>
+    ${n?`<button class="btn btn-line" onclick="IMG.files=[];drawImageTool()">Clear files</button>`:''}
+   </div>
+   ${CFG.ai_enabled?'':'<div class="infobox">AI naming needs <b>OPENAI_API_KEY</b> on this server. Without it the tool still resizes and converts, and generates pattern-based names from your company and page fields that you can edit.</div>'}
+  </div></div>`;
+}
+function wireDrop(){
+ const d=document.getElementById('imgDrop');if(!d)return;
+ ['dragenter','dragover'].forEach(e=>d.addEventListener(e,ev=>{ev.preventDefault();d.classList.add('over');}));
+ ['dragleave','drop'].forEach(e=>d.addEventListener(e,ev=>{ev.preventDefault();d.classList.remove('over');}));
+ d.addEventListener('drop',ev=>{if(ev.dataTransfer?.files?.length)addImages(ev.dataTransfer.files);});
+ drawImgList();
+}
+function addImages(list){
+ const incoming=[...list].filter(f=>f.type.startsWith('image/'));
+ if(!incoming.length){toast("Those files aren't images.");return;}
+ const room=10-IMG.files.length;
+ if(room<=0){toast("10 images per batch is the max — run another batch after this one.");return;}
+ if(incoming.length>room)toast(`Only the first ${room} were added — 10 per batch is the max.`);
+ IMG.files=IMG.files.concat(incoming.slice(0,room));
+ drawImageTool();
+}
+function drawImgList(){
+ const h=document.getElementById('imgList');if(!h)return;
+ h.innerHTML=IMG.files.map((f,i)=>`<div class="savedrow">
+   <img src="${URL.createObjectURL(f)}" alt="">
+   <span class="u"><b>${esc(f.name)}</b>${Math.round(f.size/1024).toLocaleString()} KB</span>
+   <button class="ic" title="Remove" onclick="IMG.files.splice(${i},1);drawImageTool()">✕</button></div>`).join("");
+}
+async function analyzeImages(){
+ const m=IMG_META;
+ if(!m.companyName.trim()||!m.projectName.trim()){toast("Company name and project name are required.");return;}
+ if(!IMG.files.length){toast("Add at least one image.");return;}
+ const b=document.getElementById('imgGo');if(b){b.disabled=true;b.innerHTML='<span class="spin"></span>Analyzing…';}
+ const fd=new FormData();
+ IMG.files.forEach(f=>fd.append('images',f));
+ fd.append('meta',JSON.stringify(m));
+ try{
+  const r=await fetch('/api/tools/image/analyze',{method:'POST',body:fd});
+  const d=await r.json();
+  if(!d.ok)throw new Error(d.error||('HTTP '+r.status));
+  IMG.analyzed=d.files;IMG.step=2;drawImageTool();
+  (d.warnings||[]).forEach(w=>toast(w));
+  if(d.ai_used)toast("✨ AI named and described your images — edit anything before saving.");
+ }catch(e){toast("Analyze failed: "+e.message);if(b){b.disabled=false;b.textContent='✨ Analyze & review names';}}
+}
+function imgStep2(){
+ return `<div class="panel" style="margin-top:20px">
+  <div class="phead"><span class="ttl">🖼 2. Review &amp; edit names / alt text</span>
+   <span class="note" style="margin-left:auto">Everything here is editable before anything is saved.</span></div>
+  <div class="pbody">
+   ${IMG.analyzed.map((f,i)=>`<div class="imgrow">
+     <img src="${IMG.files[i]?URL.createObjectURL(IMG.files[i]):''}" alt="">
+     <div class="fields">
+      <div class="lab">SEO filename ${f.source==='ai'?'<span class="aitag ai">AI</span>':'<span class="aitag pat">pattern</span>'}</div>
+      <div style="display:flex;align-items:center;gap:6px">
+       <input value="${esc(f.seoFilename)}" oninput="IMG.analyzed[${i}].seoFilename=this.value"><span class="ext">.webp</span></div>
+      <div class="lab">Alt text</div>
+      <textarea maxlength="125" oninput="IMG.analyzed[${i}].altText=this.value;this.nextElementSibling.textContent=this.value.length+'/125'">${esc(f.altText)}</textarea>
+      <div class="meta2">${(f.altText||'').length}/125</div>
+      <div class="meta2">${esc(f.originalName)} · ${f.width}×${f.height}px · ${f.sizeKb.toLocaleString()} KB</div>
+     </div></div>`).join("")}
+   <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+    <button class="btn btn-good" id="imgSave" onclick="finalizeImages()" ${CFG.cloudinary_enabled?'':'disabled title="Cloudinary is not configured on this server"'}>☁ Save to Cloudinary</button>
+    <button class="btn btn-primary" onclick="zipImages()">⬇ Download optimized ZIP</button>
+    <button class="btn btn-back" onclick="IMG.step=1;drawImageTool()">← Back</button>
+   </div>
+   ${CFG.cloudinary_enabled?'':'<div class="infobox">Cloudinary hosting is off — add <b>CLOUDINARY_URL</b> in Render to save hosted URLs. <b>Download ZIP</b> works right now and includes an <b>alt-text.csv</b> with every filename and alt tag.</div>'}
+  </div></div>`;
+}
+function imgFormData(){
+ const fd=new FormData();
+ IMG.files.forEach(f=>fd.append('images',f));
+ fd.append('meta',JSON.stringify(IMG_META));
+ fd.append('approved',JSON.stringify(IMG.analyzed.map(f=>({seoFilename:f.seoFilename,altText:f.altText}))));
+ fd.append('preset',IMG_OPTS.preset);
+ fd.append('maxWidth',IMG_OPTS.maxWidth);
+ fd.append('quality',IMG_OPTS.quality);
+ return fd;
+}
+async function zipImages(){
+ toast("Optimizing… the download starts automatically.");
+ try{
+  const r=await fetch('/api/tools/image/zip',{method:'POST',body:imgFormData()});
+  if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||('HTTP '+r.status));}
+  const blob=await r.blob();
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`S1M Optimized Images - ${(IMG_META.projectName||'images')}.zip`;
+  document.body.appendChild(a);a.click();a.remove();
+  toast("✓ ZIP downloaded — it includes alt-text.csv for your developer.");
+ }catch(e){toast("ZIP failed: "+e.message);}
+}
+async function finalizeImages(){
+ const b=document.getElementById('imgSave');if(b){b.disabled=true;b.innerHTML='<span class="spin"></span>Saving…';}
+ try{
+  const r=await fetch('/api/tools/image/finalize',{method:'POST',body:imgFormData()});
+  const d=await r.json();
+  if(!d.ok)throw new Error(d.error||('HTTP '+r.status));
+  IMG.saved=d;IMG.step=3;drawImageTool();
+ }catch(e){toast("Save failed: "+e.message);if(b){b.disabled=false;b.textContent='☁ Save to Cloudinary';}}
+}
+function imgStep3(){
+ const d=IMG.saved||{};const files=d.savedFiles||[];
+ return `<div class="panel" style="margin-top:20px">
+  <div class="phead"><span class="ttl">✅ 3. Saved &amp; hosted</span></div>
+  <div class="pbody">
+   <div class="okbox"><b>${files.length} image${files.length===1?'':'s'} optimized and hosted</b>
+    Saved ${(d.savedKb||0).toLocaleString()} KB (${d.percentSaved||0}% smaller) · folder <b>${esc(d.folder||'')}</b></div>
+   ${files.map(f=>`<div class="savedrow">
+     <img src="${esc(f.url)}" alt="${esc(f.altText)}">
+     <span class="u"><b>${esc(f.filename)}</b>${esc(f.altText)}<br><span style="color:var(--muted)">${f.width}×${f.height}px · ${f.originalKb}→${f.optimizedKb} KB</span></span>
+     <button class="ic" title="Copy URL" onclick="navigator.clipboard.writeText('${esc(f.url)}');toast('URL copied')">🔗</button>
+     <button class="ic" title="Copy alt text" onclick="navigator.clipboard.writeText(${JSON.stringify(f.altText||'')});toast('Alt text copied')">📝</button>
+     <button class="ic" title="Open" onclick="window.open('${esc(f.url)}','_blank')">↗</button></div>`).join("")}
+   <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+    <button class="btn btn-primary" onclick="copyAllImgHtml()">📋 Copy all as HTML &lt;img&gt; tags</button>
+    <button class="btn btn-gold" onclick="IMG.files=[];IMG.analyzed=[];IMG.step=1;drawImageTool()">＋ Add more to this project</button>
+    <button class="btn btn-line" onclick="IMG_META={companyName:'',webUrl:'',projectName:'',pageName:''};openImageTool()">Start a new project</button>
+    <button class="btn btn-back" onclick="loadGallery()">🗂 View archive</button>
+   </div>
+  </div></div><div id="galleryPane"></div>`;
+}
+function copyAllImgHtml(){
+ const files=(IMG.saved||{}).savedFiles||[];
+ const html=files.map(f=>`<img src="${f.url}" alt="${(f.altText||'').replace(/"/g,'&quot;')}" width="${f.width}" height="${f.height}" loading="lazy">`).join("\n");
+ navigator.clipboard.writeText(html).then(()=>toast("✓ HTML copied — paste straight into the page."),()=>toast("Copy failed"));
+}
+async function loadGallery(){
+ const pane=document.getElementById('galleryPane')||document.getElementById('toolPane');
+ if(!pane)return;
+ pane.innerHTML='<div class="panel" style="margin-top:16px"><div class="empty"><span class="spin"></span>Loading archive…</div></div>';
+ let d;try{d=await api('/api/tools/image/gallery');}catch(e){pane.innerHTML='<div class="panel" style="margin-top:16px"><div class="empty">'+esc(e.message)+'</div></div>';return;}
+ const g=d.gallery||[];
+ pane.innerHTML=`<div class="panel" style="margin-top:16px">
+  <div class="phead"><span class="ttl">🗂 Image Archive</span><span class="note" style="margin-left:auto">${g.length} hosted image${g.length===1?'':'s'}</span></div>
+  <table><thead><tr><th>Preview</th><th>Company</th><th>Project / Page</th><th>Filename</th><th>Alt text</th><th>URL</th></tr></thead><tbody>
+  ${g.map(i=>`<tr>
+    <td><img src="${esc(i.url)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:7px"></td>
+    <td><b style="color:var(--navy)">${esc(i.company)}</b>${i.urlRef?`<small style="display:block;color:var(--muted)">${esc(i.urlRef)}</small>`:''}</td>
+    <td style="font-size:12.5px">${esc(i.project)}${i.page&&i.page!=='—'?` · ${esc(i.page)}`:''}</td>
+    <td style="font-size:12px">${esc(i.filename)}<small style="display:block;color:var(--muted)">${i.width}×${i.height} · ${i.sizeKb} KB</small></td>
+    <td style="font-size:12px;color:#33415C;max-width:230px">${esc(i.alt)}</td>
+    <td><button class="ic" title="Copy URL" onclick="navigator.clipboard.writeText('${esc(i.url)}');toast('URL copied')">🔗</button></td></tr>`).join("")
+   ||`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px">${d.cloudinary_enabled===false?'Cloudinary is not configured, so nothing is hosted yet.':'No images hosted yet.'}</td></tr>`}
+  </tbody></table></div>`;
+}
 
 /* ============================================================
    DASHBOARD
