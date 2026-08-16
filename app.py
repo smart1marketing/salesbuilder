@@ -17,11 +17,13 @@ Combined dashboard + proposal builder backend.
   API (IO_API_BASE), which stays exactly as deployed today.
 """
 
+import base64
 import json
 import os
 import re
 import threading
 import logging
+import zipfile
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -44,6 +46,17 @@ from reportlab.platypus import (Paragraph, SimpleDocTemplate, Spacer, Table,
                                 TableStyle)
 from xml.sax.saxutils import escape as xml_escape
 
+# ---- Image tools (Pillow ships with reportlab; Cloudinary is optional) ----
+from PIL import Image, ImageOps
+
+try:
+    import cloudinary
+    import cloudinary.api
+    import cloudinary.uploader
+    _CLOUDINARY_IMPORTED = True
+except Exception:  # pragma: no cover - only if the package is missing
+    _CLOUDINARY_IMPORTED = False
+
 # ---- Word export ----
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -51,12 +64,33 @@ from docx.shared import Inches, Pt, RGBColor
 
 load_dotenv()
 
+# =====================================================================
+# Version — shown in the app's top-right corner so a screenshot alone
+# tells you exactly which build a salesperson is looking at.
+# Bump APP_VERSION on every deploy that changes behavior.
+# =====================================================================
+APP_VERSION = "1.1.0"
+BUILD_DATE = "2026-08-16"
+VERSION_NOTES = "Adds Tools menu: SEO image resizer, namer & alt-text writer"
+
 BASE_DIR = Path(__file__).resolve().parent
 app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}}, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
+# Cloudinary reads CLOUDINARY_URL from the environment. Optional: without it
+# the image tool still optimizes and returns a ZIP, it just can't host files.
+if _CLOUDINARY_IMPORTED:
+    try:
+        cloudinary.config(secure=True)
+    except Exception:
+        logger.warning("Cloudinary configuration failed; image hosting disabled.")
+
+# Uploads are held in memory only. Keep a sane ceiling so a huge drop can't
+# exhaust the dyno (Render Starter = 512 MB).
+app.config["MAX_CONTENT_LENGTH"] = int(os.getenv("MAX_UPLOAD_MB", "60")) * 1024 * 1024
 
 # =====================================================================
 # Database (SQLite locally, Postgres on Render via DATABASE_URL)
@@ -256,27 +290,46 @@ def summarize_into(q, state):
 # =====================================================================
 # Routes — core
 # =====================================================================
+def _cloudinary_ready():
+    """True when CLOUDINARY_URL (or the discrete vars) are configured."""
+    if not _CLOUDINARY_IMPORTED:
+        return False
+    try:
+        cfg = cloudinary.config()
+        return bool(cfg.cloud_name and cfg.api_key and cfg.api_secret)
+    except Exception:
+        return False
+
+
 @app.get("/health")
 def health():
     return jsonify({
         "status": "ok",
+        "version": APP_VERSION,
+        "build_date": BUILD_DATE,
         "database": _db_url.split("://")[0],
         "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "cloudinary_configured": _cloudinary_ready(),
         "io_api_base": os.getenv("IO_API_BASE", "https://insertionordersmart.onrender.com"),
     })
 
 
 @app.get("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", app_version=APP_VERSION)
 
 
 @app.get("/api/config")
 def api_config():
     return jsonify({
+        "version": APP_VERSION,
+        "build_date": BUILD_DATE,
+        "version_notes": VERSION_NOTES,
+        "database": _db_url.split("://")[0],
         "io_api_base": os.getenv("IO_API_BASE", "https://insertionordersmart.onrender.com"),
         "io_app_url": os.getenv("IO_APP_URL", "https://insertionordersmart.onrender.com"),
         "ai_enabled": bool(os.getenv("OPENAI_API_KEY")),
+        "cloudinary_enabled": _cloudinary_ready(),
     })
 
 
@@ -851,6 +904,348 @@ def ai_rewrite():
         return jsonify({"ok": True, "text": _openai_response(prompt, 2500)})
     except Exception as exc:
         return jsonify({"ok": False, "error": "AI rewrite failed", "detail": str(exc)}), 502
+
+
+# =====================================================================
+# TOOLS — SEO Image Optimizer
+# ---------------------------------------------------------------------
+# Bulk resize + convert to WebP, AI-generated SEO filenames and alt text,
+# optional hosting in Cloudinary with the project metadata attached.
+#
+# Stateless by design: the browser holds the original files and posts them
+# once to /analyze (to get names) and again to /finalize or /zip (to save).
+# Nothing is cached server-side, so it works across gunicorn workers.
+# =====================================================================
+MAX_IMAGES_PER_BATCH = int(os.getenv("MAX_IMAGES_PER_BATCH", "10"))
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff"}
+RESIZE_PRESETS = {
+    "hero": 2400,
+    "full": 1920,
+    "content": 1200,
+    "thumb": 800,
+    "original": 0,
+}
+
+
+def _slugify(value, fallback="image"):
+    text = re.sub(r"[^a-zA-Z0-9]+", "-", str(value or "")).strip("-").lower()
+    text = re.sub(r"-{2,}", "-", text)
+    return (text or fallback)[:80]
+
+
+def _fallback_seo(original_name, meta, index):
+    """Deterministic naming used when OpenAI is unavailable — never blocks the tool."""
+    stem = Path(original_name or "").stem
+    generic = bool(re.fullmatch(r"(img|image|photo|dsc|screenshot|untitled)[-_ ]?\d*", stem.strip(), re.I))
+    parts = [meta.get("companyName"), meta.get("pageName") or meta.get("projectName")]
+    if not generic and stem:
+        parts.append(stem)
+    slug = _slugify("-".join([p for p in parts if p]), "image")
+    if generic or not stem:
+        slug = f"{slug}-{index + 1}"
+    subject = meta.get("pageName") or meta.get("projectName") or "services"
+    alt = f"{meta.get('companyName') or 'Business'} — {subject}".strip()
+    return slug, alt[:125]
+
+
+def _openai_vision_seo(image_bytes, mime_type, meta):
+    """Ask OpenAI for an SEO filename + alt text. Raises on any failure."""
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OpenAI is not configured")
+    data_url = f"data:{mime_type};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+    context_bits = ", ".join(filter(None, [
+        f"Company: {meta.get('companyName')}" if meta.get("companyName") else "",
+        f"Website: {meta.get('webUrl')}" if meta.get("webUrl") else "",
+        f"Project: {meta.get('projectName')}" if meta.get("projectName") else "",
+        f"Page: {meta.get('pageName')}" if meta.get("pageName") else "",
+    ]))
+    payload = {
+        "model": os.getenv("OPENAI_VISION_MODEL", "gpt-4o"),
+        "messages": [
+            {"role": "system", "content":
+                "You are an expert SEO copywriter. Analyze images and return JSON with exactly this shape: "
+                '{"seoFilename": "descriptive-keyword-rich-filename-lowercase-hyphenated", '
+                '"altText": "concise descriptive alt text under 125 characters"}. '
+                "The filename must be lowercase, hyphenated, no file extension, no stop-word padding. "
+                "The alt text describes what is actually visible; never start it with \"Image of\" or "
+                "\"Picture of\", and never stuff keywords."},
+            {"role": "user", "content": [
+                {"type": "text", "text":
+                    "Generate an SEO filename (no extension) and alt text for this image. "
+                    f"Business context — {context_bits or 'none provided'}. "
+                    "Work the business and page context into the filename naturally where it fits."},
+                {"type": "image_url", "image_url": {"url": data_url}},
+            ]},
+        ],
+        "response_format": {"type": "json_object"},
+        "max_tokens": 300,
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload, timeout=90,
+    )
+    response.raise_for_status()
+    data = json.loads(response.json()["choices"][0]["message"]["content"])
+    slug = _slugify(data.get("seoFilename"), "image")
+    alt = str(data.get("altText") or "").strip()[:125]
+    if not alt:
+        raise RuntimeError("OpenAI returned no alt text")
+    return slug, alt
+
+
+def _read_meta():
+    """Project metadata arrives as a JSON string field alongside the files."""
+    raw = request.form.get("meta") or "{}"
+    try:
+        meta = json.loads(raw)
+    except Exception:
+        meta = {}
+    return meta if isinstance(meta, dict) else {}
+
+
+def _collect_files():
+    files = request.files.getlist("images")
+    files = [f for f in files if f and f.filename]
+    if not files:
+        return None, (jsonify({"ok": False, "error": "Select at least one image."}), 400)
+    if len(files) > MAX_IMAGES_PER_BATCH:
+        return None, (jsonify({"ok": False,
+                               "error": f"Up to {MAX_IMAGES_PER_BATCH} images per batch."}), 400)
+    for f in files:
+        if f.mimetype and f.mimetype not in ALLOWED_IMAGE_TYPES:
+            return None, (jsonify({"ok": False,
+                                   "error": f"{f.filename} is not a supported image type."}), 400)
+    return files, None
+
+
+def _optimize(image_bytes, max_width, quality):
+    """Resize (never upscale) and convert to WebP. Returns (bytes, w, h)."""
+    with Image.open(BytesIO(image_bytes)) as img:
+        img = ImageOps.exif_transpose(img)          # honor camera rotation
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGBA")
+        else:
+            img = img.convert("RGB")
+        if max_width and img.width > max_width:
+            ratio = max_width / float(img.width)
+            img = img.resize((max_width, max(1, int(img.height * ratio))), Image.LANCZOS)
+        out = BytesIO()
+        img.save(out, format="WEBP", quality=quality, method=6)
+        return out.getvalue(), img.width, img.height
+
+
+def _quality():
+    try:
+        return max(40, min(100, int(request.form.get("quality") or 82)))
+    except (TypeError, ValueError):
+        return 82
+
+
+def _max_width():
+    preset = (request.form.get("preset") or "full").lower()
+    if preset == "custom":
+        try:
+            return max(0, min(6000, int(request.form.get("maxWidth") or 0)))
+        except (TypeError, ValueError):
+            return 1920
+    return RESIZE_PRESETS.get(preset, 1920)
+
+
+@app.post("/api/tools/image/analyze")
+def tools_image_analyze():
+    """Step 1: return a suggested SEO filename + alt text for each image."""
+    files, error = _collect_files()
+    if error:
+        return error
+    meta = _read_meta()
+    ai_key = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    results, ai_used, warnings = [], False, []
+
+    for index, storage in enumerate(files):
+        raw = storage.read()
+        try:
+            with Image.open(BytesIO(raw)) as probe:
+                width, height = probe.size
+        except Exception:
+            return jsonify({"ok": False,
+                            "error": f"{storage.filename} could not be read as an image."}), 400
+
+        slug, alt, source = None, None, "pattern"
+        if ai_key:
+            try:
+                slug, alt = _openai_vision_seo(raw, storage.mimetype or "image/jpeg", meta)
+                source, ai_used = "ai", True
+            except Exception as exc:
+                logger.warning("Vision naming failed for %s: %s", storage.filename, exc)
+                warnings.append(f"AI naming unavailable for {storage.filename} — used a pattern name.")
+        if not slug:
+            slug, alt = _fallback_seo(storage.filename, meta, index)
+
+        results.append({
+            "index": index,
+            "originalName": storage.filename,
+            "seoFilename": slug,
+            "altText": alt,
+            "width": width,
+            "height": height,
+            "sizeKb": round(len(raw) / 1024),
+            "source": source,
+        })
+
+    return jsonify({
+        "ok": True, "files": results, "ai_used": ai_used,
+        "ai_available": ai_key,
+        "cloudinary_available": _cloudinary_ready(),
+        "warnings": warnings,
+    })
+
+
+def _process_approved(files):
+    """Shared optimize step for /finalize and /zip. Returns list of dicts."""
+    max_width, quality = _max_width(), _quality()
+    try:
+        approved = json.loads(request.form.get("approved") or "[]")
+    except Exception:
+        approved = []
+    processed = []
+    for index, storage in enumerate(files):
+        raw = storage.read()
+        entry = approved[index] if index < len(approved) and isinstance(approved[index], dict) else {}
+        slug = _slugify(entry.get("seoFilename"), f"image-{index + 1}")
+        alt = str(entry.get("altText") or "").strip()[:125]
+        optimized, width, height = _optimize(raw, max_width, quality)
+        processed.append({
+            "slug": slug, "altText": alt, "bytes": optimized,
+            "width": width, "height": height,
+            "originalKb": round(len(raw) / 1024),
+            "optimizedKb": round(len(optimized) / 1024),
+            "originalName": storage.filename,
+        })
+    return processed
+
+
+@app.post("/api/tools/image/zip")
+def tools_image_zip():
+    """Step 2a: download the optimized WebP files (works without Cloudinary)."""
+    files, error = _collect_files()
+    if error:
+        return error
+    meta = _read_meta()
+    processed = _process_approved(files)
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        manifest = ["filename,alt_text,width,height,original_kb,optimized_kb"]
+        seen = {}
+        for item in processed:
+            name = item["slug"]
+            seen[name] = seen.get(name, 0) + 1
+            if seen[name] > 1:
+                name = f"{name}-{seen[name]}"
+            zf.writestr(f"{name}.webp", item["bytes"])
+            manifest.append('{},"{}",{},{},{},{}'.format(
+                f"{name}.webp", item["altText"].replace('"', "'"),
+                item["width"], item["height"], item["originalKb"], item["optimizedKb"]))
+        zf.writestr("alt-text.csv", "\n".join(manifest))
+    buf.seek(0)
+    project = _slugify(meta.get("projectName"), "images")
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                     download_name=f"S1M Optimized Images - {project}.zip")
+
+
+@app.post("/api/tools/image/finalize")
+def tools_image_finalize():
+    """Step 2b: optimize and host in Cloudinary with the project metadata attached."""
+    if not _cloudinary_ready():
+        return jsonify({"ok": False, "error":
+                        "Cloudinary is not configured on this server. Add CLOUDINARY_URL in Render, "
+                        "or use Download ZIP instead."}), 503
+    files, error = _collect_files()
+    if error:
+        return error
+    meta = _read_meta()
+    if not str(meta.get("companyName") or "").strip() or not str(meta.get("projectName") or "").strip():
+        return jsonify({"ok": False, "error": "Company name and project name are required."}), 400
+
+    processed = _process_approved(files)
+    folder = f"smart1_images/{_slugify(meta.get('companyName'), 'client')}/{_slugify(meta.get('projectName'), 'project')}"
+    saved = []
+    for item in processed:
+        try:
+            result = cloudinary.uploader.upload(
+                BytesIO(item["bytes"]),
+                resource_type="image", folder=folder,
+                public_id=item["slug"], overwrite=False, unique_filename=True,
+                context={
+                    "company": str(meta.get("companyName") or ""),
+                    "url": str(meta.get("webUrl") or ""),
+                    "project": str(meta.get("projectName") or ""),
+                    "page": str(meta.get("pageName") or "N/A"),
+                    "alt": item["altText"],
+                },
+                tags=["smart1_seo_images", _slugify(meta.get("companyName"), "client")],
+            )
+        except Exception as exc:
+            logger.exception("Cloudinary upload failed")
+            return jsonify({"ok": False, "error": "Cloudinary upload failed", "detail": str(exc)}), 502
+        saved.append({
+            "url": result.get("secure_url"),
+            "public_id": result.get("public_id"),
+            "filename": f"{item['slug']}.webp",
+            "altText": item["altText"],
+            "width": item["width"], "height": item["height"],
+            "originalKb": item["originalKb"], "optimizedKb": item["optimizedKb"],
+            "originalName": item["originalName"],
+        })
+
+    total_before = sum(s["originalKb"] for s in saved)
+    total_after = sum(s["optimizedKb"] for s in saved)
+    return jsonify({"ok": True, "savedFiles": saved, "folder": folder,
+                    "savedKb": max(0, total_before - total_after),
+                    "percentSaved": round(100 * (total_before - total_after) / total_before) if total_before else 0})
+
+
+@app.get("/api/tools/image/gallery")
+def tools_image_gallery():
+    """Archive of everything this tool has hosted, newest first."""
+    if not _cloudinary_ready():
+        return jsonify({"ok": True, "gallery": [], "cloudinary_enabled": False})
+    try:
+        response = cloudinary.api.resources(
+            type="upload", prefix="smart1_images/", context=True,
+            max_results=min(int(request.args.get("limit") or 100), 200),
+            direction="desc",
+        )
+    except Exception as exc:
+        logger.warning("Cloudinary gallery failed: %s", exc)
+        return jsonify({"ok": False, "error": "Could not read the Cloudinary gallery",
+                        "detail": str(exc)}), 502
+    gallery = []
+    for item in response.get("resources", []):
+        context = (item.get("context") or {}).get("custom") or item.get("context") or {}
+        gallery.append({
+            "id": item.get("public_id"),
+            "url": item.get("secure_url"),
+            "company": context.get("company") or "—",
+            "urlRef": context.get("url") or "",
+            "project": context.get("project") or "—",
+            "page": context.get("page") or "—",
+            "alt": context.get("alt") or "",
+            "filename": (item.get("public_id") or "").split("/")[-1] + "." + (item.get("format") or "webp"),
+            "sizeKb": round((item.get("bytes") or 0) / 1024),
+            "width": item.get("width"), "height": item.get("height"),
+            "created_at": item.get("created_at"),
+        })
+    return jsonify({"ok": True, "gallery": gallery, "cloudinary_enabled": True})
+
+
+@app.errorhandler(413)
+def handle_too_large(exc):
+    limit = app.config.get("MAX_CONTENT_LENGTH", 0) // (1024 * 1024)
+    return jsonify({"ok": False,
+                    "error": f"That upload is too large. Keep each batch under {limit} MB."}), 413
 
 
 @app.errorhandler(Exception)

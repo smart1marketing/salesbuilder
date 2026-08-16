@@ -41,3 +41,14 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-5-mini
+      # Vision model used by the Tools > SEO Image Optimizer to write
+      # filenames and alt text. Needs OPENAI_API_KEY above to be set.
+      - key: OPENAI_VISION_MODEL
+        value: gpt-4o
+      # Optional: hosts optimized images. Without it the image tool still
+      # resizes and converts, and returns a ZIP + alt-text.csv instead.
+      # Paste the same CLOUDINARY_URL the insertionordersmart service uses.
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: MAX_UPLOAD_MB
+        value: "60"

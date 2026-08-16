@@ -1,0 +1,12 @@
+# Local database (Render uses Postgres via DATABASE_URL instead)
+smart1_hub.db
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets — never commit keys
+.env

@@ -4,6 +4,8 @@ sqlalchemy
 psycopg2-binary
 reportlab
 python-docx
+pillow
+cloudinary
 requests
 python-dotenv
 gunicorn

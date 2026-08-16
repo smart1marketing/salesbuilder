@@ -1,4 +1,17 @@
-# Smart 1 Sales Builder — Proposals & Insertion Orders (v1)
+# Smart 1 Sales Builder — Proposals & Insertion Orders
+
+**Current version: v1.1.0** — the version is shown in the app's top-right
+corner. Click it for a Build Info panel (version, build date, database, AI
+and Cloudinary status, IO API) with a "Copy details" button. Quote that
+when reporting a problem; bump `APP_VERSION` in `app.py` on every deploy.
+
+| Version | Date | What changed |
+|---|---|---|
+| 1.1.0 | 2026-08-16 | Tools menu + SEO Image Optimizer (bulk resize, WebP, AI filenames & alt text, Cloudinary hosting, ZIP export); version badge & diagnostics |
+| 1.0.0 | 2026-08-11 | First release — dashboard, proposal builder, PDF/Word export, IO lookup, convert-to-IO wizard |
+
+---
+
 
 One dashboard for the whole flow: build a branded proposal for a customer,
 save it to a database under a quote number, edit / duplicate / look it up
@@ -119,6 +132,39 @@ like a hand-built IO, and both numbers are linked in the database.
    order number, generate the customer + internal PDFs in Cloudinary, and
    (optional checkbox) submit the finished IO to Smart 1 Suite /
    GoHighLevel. The quote is marked **Converted** and linked to the IO #.
+
+## Tools → SEO Image Optimizer
+
+Bulk image resizer, SEO namer, and alt-text writer, built into the app
+(no separate service to deploy).
+
+1. **Project & files** — company, website, project, page; pick a resize
+   preset (Hero 2400 / Full 1920 / In-content 1200 / Thumb 800 / original /
+   custom) and WebP quality; drag in up to 10 images.
+2. **Review & edit** — AI suggests a keyword-rich filename and alt text for
+   each image; every field is editable, with a 125-character counter on the
+   alt text. Images tagged `AI` came from the vision model, `pattern` ones
+   were built from your company/page fields (the fallback when no key is set).
+3. **Save** — either host in Cloudinary (`smart1_images/<company>/<project>`,
+   with company / url / project / page / alt stored as asset context) or
+   **Download optimized ZIP**, which includes an `alt-text.csv` for your
+   developer. After saving, "Copy all as HTML `<img>` tags" gives you
+   paste-ready markup with alt, width, height, and `loading="lazy"`.
+
+An **Image Archive** table lists everything hosted, searchable by company
+and project, with one-click URL copy.
+
+Environment variables it uses (both optional):
+
+- `OPENAI_API_KEY` + `OPENAI_VISION_MODEL` (default `gpt-4o`) — AI filenames
+  and alt text. Without a key the tool still resizes and converts, and falls
+  back to pattern names you can edit.
+- `CLOUDINARY_URL` — hosting. Without it, "Save to Cloudinary" is disabled
+  and Download ZIP is used instead. Use the same value as the
+  `insertionordersmart` service so all Smart 1 assets live in one account.
+
+Resizing never upscales, honors EXIF rotation, and converts to WebP with
+Pillow before upload, so the hosted file is already optimized.
 
 ## v1 limits worth knowing
 
